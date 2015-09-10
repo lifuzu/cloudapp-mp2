@@ -126,7 +126,18 @@ public class TopTitles extends Configured implements Tool {
 
         @Override
         public void map(Object key, Text value, Context context) throws IOException, InterruptedException {
-        // TODO
+            // TODO
+            final IntWritable one = new IntWritable(1);
+            Text word = new Text();
+            StringTokenizer st = new StringTokenizer(value.toString(), this.delimiters);
+            while (st.hasMoreTokens()) {
+                String token = st.nextToken().trim().toLowerCase();
+                if (!this.stopWords.contains(token)) {
+                    word.set(token);
+                    context.write(word, one);
+                }
+            }
+            // End of TODO
         }
     }
 
@@ -134,12 +145,22 @@ public class TopTitles extends Configured implements Tool {
         @Override
         public void reduce(Text key, Iterable<IntWritable> values, Context context) throws IOException, InterruptedException {
             // TODO
+            int sum = 0;
+            IntWritable result = new IntWritable();
+            for (IntWritable val : values) {
+                sum += val.get();
+            }
+            result.set(sum);
+            context.write(key, result);
+            // End of TODO
         }
     }
 
     public static class TopTitlesMap extends Mapper<Text, Text, NullWritable, TextArrayWritable> {
         Integer N;
         // TODO
+        private TreeSet<Pair<Integer, String>> countToWordMap = new TreeSet<Pair<Integer, String>>();
+        // End of TODO
 
         @Override
         protected void setup(Context context) throws IOException,InterruptedException {
@@ -150,17 +171,34 @@ public class TopTitles extends Configured implements Tool {
         @Override
         public void map(Text key, Text value, Context context) throws IOException, InterruptedException {
             // TODO
+            Integer count = Integer.parseInt(value.toString());
+            String word = key.toString();
+
+            countToWordMap.add(new Pair<Integer, String>(count, word));
+
+            if (countToWordMap.size() > this.N) {
+                countToWordMap.remove(countToWordMap.first());
+            }
+            // End of TODO
         }
 
         @Override
         protected void cleanup(Context context) throws IOException, InterruptedException {
             // TODO
+            for (Pair<Integer, String> item : countToWordMap) {
+                String[] strings = {item.second, item.first.toString()};
+                TextArrayWritable val = new TextArrayWritable(strings);
+                context.write(NullWritable.get(), val);
+            }
+            // End of TODO
         }
     }
 
     public static class TopTitlesReduce extends Reducer<NullWritable, TextArrayWritable, Text, IntWritable> {
         Integer N;
         // TODO
+        private TreeSet<Pair<Integer, String>> countToWordMap = new TreeSet<Pair<Integer, String>>();
+        // End of TODO
 
         @Override
         protected void setup(Context context) throws IOException,InterruptedException {
@@ -171,6 +209,25 @@ public class TopTitles extends Configured implements Tool {
         @Override
         public void reduce(NullWritable key, Iterable<TextArrayWritable> values, Context context) throws IOException, InterruptedException {
             // TODO
+            for (TextArrayWritable val: values) {
+                Text[] pair= (Text[]) val.toArray();
+
+                String word = pair[0].toString();
+                Integer count = Integer.parseInt(pair[1].toString());
+
+                countToWordMap.add(new Pair<Integer, String>(count, word));
+
+                if (countToWordMap.size() > this.N) {
+                    countToWordMap.remove(countToWordMap.first());
+                }
+            }
+
+            for (Pair<Integer, String> item: countToWordMap) {
+                Text word = new Text(item.second);
+                IntWritable value = new IntWritable(item.first);
+                context.write(word, value);
+            }
+            // End of TODO
         }
     }
 
